@@ -1,4 +1,4 @@
-package chat.client;
+package ru.vorobev.client;
 
 import javafx.application.Application;
 import javafx.event.EventHandler;
@@ -7,12 +7,9 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.stage.Stage;
-import javafx.stage.StageStyle;
 import javafx.stage.WindowEvent;
 
 import java.io.IOException;
-import java.net.Socket;
-import java.net.UnknownHostException;
 
 public class ClientChat extends Application {
 

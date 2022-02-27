@@ -1,4 +1,4 @@
-package chat.client;
+package ru.vorobev.client;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
