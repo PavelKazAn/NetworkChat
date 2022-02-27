@@ -17,18 +17,27 @@ public class Network {
     private DataOutputStream socketOutput;
     private DataInputStream socketInput;
 
-    public Network(int port, String host) {
+    private static Network INSTANCE;
+
+    public static Network getInstance(){
+        if(INSTANCE == null){
+            INSTANCE = new Network();
+        }
+        return INSTANCE;
+    }
+
+    private Network(int port, String host) {
         this.port = port;
         this.host = host;
     }
 
-    public Network(){
-        this(SERVER_PORT,SERVER_HOST);
+    private Network() {
+        this(SERVER_PORT, SERVER_HOST);
     }
 
-    public boolean connect(){
+    public boolean connect() {
         try {
-            this.socket = new Socket(this.host, this.port );
+            this.socket = new Socket(this.host, this.port);
             this.socketInput = new DataInputStream(socket.getInputStream());
             this.socketOutput = new DataOutputStream(socket.getOutputStream());
             return true;
@@ -39,7 +48,7 @@ public class Network {
         }
     }
 
-    public void sendMessage(String message) throws IOException{
+    public void sendMessage(String message) throws IOException {
         try {
             socketOutput.writeUTF(message);
         } catch (IOException e) {
@@ -48,10 +57,13 @@ public class Network {
         }
     }
 
-    public void waitMessages(Consumer<String> messageHandler){
+    public void waitMessages(Consumer<String> messageHandler) {
         Thread thread = new Thread(() -> {
             while (true) {
                 try {
+                    if (Thread.currentThread().isInterrupted()) {
+                        return;
+                    }
                     String message = socketInput.readUTF();
                     messageHandler.accept(message);
                 } catch (IOException e) {
@@ -64,10 +76,10 @@ public class Network {
         thread.start();
     }
 
-    public void close(){
+    public void close() {
         try {
             this.socket.close();
-        }catch (IOException e){
+        } catch (IOException e) {
             e.printStackTrace();
         }
     }
