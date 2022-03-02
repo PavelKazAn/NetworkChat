@@ -1,5 +1,6 @@
 package ru.vorobev.server.chat;
 
+import ru.vorobev.clientserver.Command;
 import ru.vorobev.server.chat.auth.AuthService;
 
 import java.io.IOException;
@@ -33,26 +34,57 @@ public class MyServer {
         System.out.println("Client has been connected");
         ClientHandler clientHandler = new ClientHandler(this, clientSocket);
         clientHandler.handle();
-
     }
 
-    public void broadcastMessage(String message, ClientHandler sender) throws IOException {
+    public synchronized void broadcastMessage(String message, ClientHandler sender) throws IOException {
         for (ClientHandler client : clients) {
-            if(client!= sender){
-                client.sendMessage(message);
+            if (client != sender) {
+                client.sendCommand(Command.clientMessageCommand(sender.getUsername(), message));
             }
         }
     }
 
-    public void subscribe(ClientHandler clientHandler){
-        this.clients.add(clientHandler);
+    public synchronized void sendPrivateMessage(ClientHandler sender, String recipient, String privateMessage) throws IOException {
+        for (ClientHandler client : clients) {
+            if (client != sender && client.getUsername().equals(recipient)) {
+                client.sendCommand(Command.clientMessageCommand(sender.getUsername(), privateMessage));
+            }
+        }
     }
 
-    public void unsubscribe(ClientHandler clientHandler){
-        this.clients.remove(clientHandler);
+    public synchronized boolean isUsernameBusy(String username) {
+        for (ClientHandler client : clients) {
+            if (client.getUsername().equals(username)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public synchronized void subscribe(ClientHandler clientHandler) throws IOException {
+        clients.add(clientHandler);
+        notifyClientUserListUpdate();
+    }
+
+    public synchronized void unsubscribe(ClientHandler clientHandler) throws IOException {
+        clients.remove(clientHandler);
+        notifyClientUserListUpdate();
     }
 
     public AuthService getAuthService() {
         return authService;
     }
+
+    private void notifyClientUserListUpdate() throws IOException {
+
+        List<String> userListOnline = new ArrayList<>();
+
+        for (ClientHandler client : clients) {
+            userListOnline.add(client.getUsername());
+        }
+        for (ClientHandler client : clients) {
+            client.sendCommand(Command.updateUserListCommand(userListOnline));
+        }
+    }
+
 }

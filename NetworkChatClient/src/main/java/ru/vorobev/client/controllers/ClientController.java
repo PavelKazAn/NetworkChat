@@ -1,13 +1,21 @@
-package ru.vorobev.client;
+package ru.vorobev.client.controllers;
 
 import javafx.application.Platform;
+import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
+import ru.vorobev.client.ClientChat;
+import ru.vorobev.client.model.Network;
+import ru.vorobev.client.model.ReadCommandListener;
+import ru.vorobev.clientserver.Command;
+import ru.vorobev.clientserver.CommandType;
+import ru.vorobev.clientserver.commands.ClientMessageCommandData;
+import ru.vorobev.clientserver.commands.UpdateUserListCommandData;
 
 import java.io.IOException;
 import java.text.DateFormat;
 import java.util.Date;
-import java.util.function.Consumer;
+import java.util.List;
 
 public class ClientController {
 
@@ -22,7 +30,6 @@ public class ClientController {
 
     private ClientChat application;
 
-
     public void sendMessage() {
         String message = textField.getText().trim();
 
@@ -32,15 +39,15 @@ public class ClientController {
         }
 
         String sender = null;
-
         if (userList.getSelectionModel().isEmpty()) {
             sender = userList.getSelectionModel().getSelectedItem();
-
         }
-
         try {
-            message = sender != null ? String.join(":", sender, message) : message;
-            Network.getInstance().sendMessage(message);
+            if(sender != null){
+                Network.getInstance().sendPrivateMessage(sender,message);
+            }else{
+                Network.getInstance().sendMessage(message);
+            }
         } catch (IOException e) {
             application.showErrorDialog("Ошибка передачи данных по сети");
         }
@@ -70,17 +77,22 @@ public class ClientController {
     }
 
     public void initializeMessageHandler() {
-        Network.getInstance().waitMessages(new Consumer<String>() {
+        Network.getInstance().addReadMessageListener(new ReadCommandListener() {
             @Override
-            public void accept(String message) {
-                Platform.runLater(new Runnable() {
-                    @Override
-                    public void run() {
-                        appendMessageToChat("Server",message);
-                    }
-                });
+            public void processReceivedCommand(Command command) {
+                if(command.getType() == CommandType.CLIENT_MESSAGE){
+                    ClientMessageCommandData data = (ClientMessageCommandData) command.getData();
+                    appendMessageToChat(data.getSender(),data.getMessage());
+                } else if(command.getType() == CommandType.UPDATE_USER_LIST){
+                    UpdateUserListCommandData data = (UpdateUserListCommandData) command.getData();
+                    Platform.runLater(new Runnable() {
+                        @Override
+                        public void run() {
+                            userList.setItems(FXCollections.observableList(data.getUsers()));
+                        }
+                    });
+                }
             }
         });
-
     }
 }
