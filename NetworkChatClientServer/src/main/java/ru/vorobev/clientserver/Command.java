@@ -7,34 +7,42 @@ import java.util.List;
 
 public class Command implements Serializable {
 
-    public Object data;
+    private Object data;
     private CommandType type;
 
-    public static Command authCommand(String login,String password){
+    public Object getData() {
+        return data;
+    }
+
+    public CommandType getType() {
+        return type;
+    }
+
+    public static Command authCommand(String login, String password) {
         Command command = new Command();
-        command.data = new AuthCommandData(login,password);
+        command.data = new AuthCommandData(login, password);
         command.type = CommandType.AUTH;
         return command;
     }
 
-    public static Command authOkCommand(String username){
+    public static Command authOkCommand(String username) {
         Command command = new Command();
         command.data = new AuthOkCommandData(username);
         command.type = CommandType.AUTH_OK;
         return command;
     }
 
-    public static Command errorCommand(String errorMessage){
+    public static Command errorCommand(String errorMessage) {
         Command command = new Command();
         command.type = CommandType.ERROR;
-        command.data = new AuthOkCommandData(errorMessage);
+        command.data = new ErrorCommandData(errorMessage);
         return command;
     }
 
-    public static Command publicMessageCommand(String message){
+    public static Command publicMessageCommand(String message) {
         Command command = new Command();
         command.type = CommandType.PUBLIC_MESSAGE;
-        command.data = new AuthOkCommandData(message);
+        command.data = new PublicMessageCommandData(message);
         return command;
     }
 
@@ -51,6 +59,7 @@ public class Command implements Serializable {
         command.data = new ClientMessageCommandData(sender, message);
         return command;
     }
+
     public static Command updateUserListCommand(List<String> users) {
         Command command = new Command();
         command.type = CommandType.UPDATE_USER_LIST;
@@ -58,13 +67,12 @@ public class Command implements Serializable {
         return command;
     }
 
-
-
-    public Object getData() {
-        return data;
+    public static Command updateUsernameCommand(String newUsername) {
+        Command command = new Command();
+        command.type = CommandType.UPDATE_USERNAME;
+        command.data = new UpdateUsernameCommandData(newUsername);
+        return command;
     }
 
-    public CommandType getType() {
-        return type;
-    }
+
 }

@@ -2,64 +2,68 @@ package ru.vorobev.client.model;
 
 import ru.vorobev.clientserver.Command;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 public class Network {
 
-    private final List<ReadCommandListener> listeners = new CopyOnWriteArrayList<>();
-
-    public static final String SERVER_HOST = "localhost";
     public static final int SERVER_PORT = 8189;
+    public static final String SERVER_HOST = "localhost";
 
-    private int port;
-    private String host;
+    private static Network INSTANCE;
+
+    private final int port;
+    private final String host;
     private Socket socket;
     private ObjectInputStream socketInput;
     private ObjectOutputStream socketOutput;
 
-    private static Network INSTANCE;
+    private final List<ReadCommandListener> listeners = new CopyOnWriteArrayList<>();
     private Thread readMessageProcess;
     private boolean connected;
-
 
     public static Network getInstance() {
         if (INSTANCE == null) {
             INSTANCE = new Network();
         }
+
         return INSTANCE;
     }
 
-    private Network(int port, String host) {
-        this.port = port;
+    private Network(String host, int port) {
         this.host = host;
+        this.port = port;
     }
 
     private Network() {
-        this(SERVER_PORT, SERVER_HOST);
+        this(SERVER_HOST, SERVER_PORT);
     }
 
     public boolean connect() {
         try {
-            this.socket = new Socket(this.host, this.port);
-            this.socketInput = new ObjectInputStream(socket.getInputStream());
-            this.socketOutput = new ObjectOutputStream(socket.getOutputStream());
+            socket = new Socket(host, port);
+            socketOutput = new ObjectOutputStream(socket.getOutputStream());
+            socketInput = new ObjectInputStream(socket.getInputStream());
             readMessageProcess = startReadMessageProcess();
             connected = true;
             return true;
-        } catch (Exception e) {
+        } catch (IOException e) {
             e.printStackTrace();
-            System.err.println("Не удалось установить соеденение");
+            System.err.println("Не удалось установить соединение");
             return false;
         }
     }
 
     public void sendAuthMessage(String login, String password) throws IOException {
-        sendCommand(Command.authCommand(login,password));
+        sendCommand(Command.authCommand(login, password));
     }
+
     public void sendMessage(String message) throws IOException {
+        System.out.println("send public message");
         sendCommand(Command.publicMessageCommand(message));
     }
 
@@ -68,12 +72,13 @@ public class Network {
             socketOutput.writeObject(command);
         } catch (IOException e) {
             System.err.println("Не удалось отправить сообщение на сервер");
+            e.printStackTrace();
             throw e;
         }
     }
 
     public void sendPrivateMessage(String recipient, String message) throws IOException {
-        sendCommand(Command.privateMessageCommand(recipient,message));
+        sendCommand(Command.privateMessageCommand(recipient, message));
     }
 
     public Thread startReadMessageProcess() {
@@ -83,14 +88,16 @@ public class Network {
                     if (Thread.currentThread().isInterrupted()) {
                         return;
                     }
-
                     Command command = readCommand();
+                    if (command.getType() == null) {
+                        continue;
+                    }
                     for (ReadCommandListener messageListener : listeners) {
                         messageListener.processReceivedCommand(command);
                     }
                 } catch (IOException e) {
-                    System.err.println("Не удалось получить сообщение от сервера");
-//                    e.printStackTrace();
+                    System.err.println("Не удалось прочитать сообщения от сервера");
+                    e.printStackTrace();
                     close();
                     break;
                 }
@@ -106,7 +113,7 @@ public class Network {
         try {
             command = (Command) socketInput.readObject();
         } catch (ClassNotFoundException e) {
-            System.err.println("Failed to read command class");
+            System.err.println("Failed to read Command class");
             e.printStackTrace();
         }
 
@@ -122,11 +129,15 @@ public class Network {
         listeners.remove(listener);
     }
 
+    public void changeUsername(String newUsername) throws IOException {
+        sendCommand(Command.updateUsernameCommand(newUsername));
+    }
+
     public void close() {
         try {
             connected = false;
             readMessageProcess.interrupt();
-            this.socket.close();
+            socket.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -135,5 +146,4 @@ public class Network {
     public boolean isConnected() {
         return connected;
     }
-
 }

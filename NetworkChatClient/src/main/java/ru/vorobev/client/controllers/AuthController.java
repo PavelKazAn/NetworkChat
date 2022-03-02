@@ -19,20 +19,20 @@ import java.io.IOException;
 
 public class AuthController {
 
-    @FXML
-    public TextField loginField;
-    @FXML
-    public PasswordField passwordField;
-    @FXML
-    public Button authButton;
 
-    private ReadCommandListener readCommandListener;
+    @FXML
+    private TextField loginField;
+    @FXML
+    private PasswordField passwordField;
+    @FXML
+    private Button authButton;
+
+    private ReadCommandListener readMessageListener;
 
     @FXML
     public void executeAuth(ActionEvent actionEvent) {
         String login = loginField.getText();
         String password = passwordField.getText();
-
         if (login == null || login.isBlank() || password == null || password.isBlank()) {
             Dialogs.AuthError.EMPTY_CREDENTIALS.show();
             return;
@@ -43,7 +43,7 @@ public class AuthController {
         }
 
         try {
-            Network.getInstance().sendAuthMessage(login,password);
+            Network.getInstance().sendAuthMessage(login, password);
         } catch (IOException e) {
             Dialogs.NetworkError.SEND_MESSAGE.show();
             e.printStackTrace();
@@ -56,32 +56,28 @@ public class AuthController {
     }
 
     public void initializeMessageHandler() {
-        readCommandListener = getNetwork().addReadMessageListener(new ReadCommandListener() {
+        readMessageListener = getNetwork().addReadMessageListener(new ReadCommandListener() {
             @Override
             public void processReceivedCommand(Command command) {
                 if (command.getType() == CommandType.AUTH_OK) {
                     AuthOkCommandData data = (AuthOkCommandData) command.getData();
-                    String userName = data.getUsername();
-                    Platform.runLater(() -> {
-                        ClientChat.INSTANCE.switchToMainChatWindow(userName);
-                    });
-                } else if(command.getType() == CommandType.ERROR) {
+                    String username = data.getUsername();
+                    Platform.runLater(() -> ClientChat.INSTANCE.switchToMainChatWindow(username));
+                } else if (command.getType() == CommandType.ERROR){
                     ErrorCommandData data = (ErrorCommandData) command.getData();
-                    String errorMessage = data.getErrorMessage();
                     Platform.runLater(() -> {
-                        Dialogs.AuthError.INVALID_CREDENTIALS.show(errorMessage);
+                        Dialogs.AuthError.INVALID_CREDENTIALS.show(data.getErrorMessage());
                     });
                 }
             }
         });
     }
 
-    public void close(){
-        getNetwork().removeReadMessageListener(readCommandListener);
+    public void close() {
+        getNetwork().removeReadMessageListener(readMessageListener);
     }
 
     private Network getNetwork() {
         return Network.getInstance();
     }
-
 }
