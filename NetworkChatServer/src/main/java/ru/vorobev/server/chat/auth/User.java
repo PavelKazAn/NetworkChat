@@ -6,28 +6,16 @@ public class User {
 
     private final String login;
     private final String password;
-    private final String userName;
+    private String username;
 
     public User(String login, String password, String userName) {
         this.login = login;
         this.password = password;
-        this.userName = userName;
+        this.username = userName;
     }
 
     public User(String login, String password) {
         this(login,password,null);
-    }
-
-    public String getLogin() {
-        return login;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public String getUserName() {
-        return userName;
     }
 
     @Override
@@ -42,4 +30,21 @@ public class User {
     public int hashCode() {
         return Objects.hash(login, password);
     }
+
+    public String getLogin() {
+        return login;
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public void setUsername(String userName) {
+        this.username = userName;
+    }
+
 }

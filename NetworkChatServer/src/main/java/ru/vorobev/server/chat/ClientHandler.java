@@ -5,20 +5,21 @@ import ru.vorobev.clientserver.CommandType;
 import ru.vorobev.clientserver.commands.AuthCommandData;
 import ru.vorobev.clientserver.commands.PrivateMessageCommandData;
 import ru.vorobev.clientserver.commands.PublicMessageCommandData;
+import ru.vorobev.clientserver.commands.UpdateUsernameCommandData;
 
 import java.io.*;
 import java.net.Socket;
 
 public class ClientHandler {
 
-    private MyServer server;
+    private final MyServer server;
     private final Socket clientSocket;
     private ObjectInputStream inputStream;
     private ObjectOutputStream outputStream;
-    private String username;
+    private String userName;
 
-    public ClientHandler(MyServer myServer, Socket clientSocket) {
-        this.server = myServer;
+    public ClientHandler(MyServer server, Socket clientSocket) {
+        this.server = server;
         this.clientSocket = clientSocket;
     }
 
@@ -31,7 +32,7 @@ public class ClientHandler {
                 authenticate();
                 readMessages();
             } catch (IOException e) {
-                System.err.println("Failed to process message to client");
+                System.err.println("Failed to process message from client");
                 e.printStackTrace();
             } finally {
                 try {
@@ -55,25 +56,19 @@ public class ClientHandler {
                 AuthCommandData data = (AuthCommandData) command.getData();
                 String login = data.getLogin();
                 String password = data.getPassword();
-
-                String userName = server.getAuthService().getUserNameByLoginAndPassword(login, password);
-
+                String userName = server.getAuthService().getUserNameByLoginAndPassword(login,password);
                 if (userName == null) {
-                    sendCommand(Command.errorCommand("Некорректный логин и пароль"));
+                    sendCommand(Command.errorCommand("Некорректные логин и пароль"));
                 } else if (server.isUsernameBusy(userName)) {
-                    sendCommand(Command.errorCommand("Такой пользователь уже существует"));
+                    sendCommand(Command.errorCommand("Такой пользователь уже существует!"));
                 } else {
-                    this.username = userName;
+                    this.userName = userName;
                     sendCommand(Command.authOkCommand(userName));
                     server.subscribe(this);
                     return;
                 }
             }
         }
-    }
-
-    public void sendCommand(Command command) throws IOException {
-        outputStream.writeObject(command);
     }
 
     private Command readCommand() throws IOException {
@@ -84,12 +79,17 @@ public class ClientHandler {
             System.err.println("Failed to read Command class");
             e.printStackTrace();
         }
+
         return command;
+    }
+
+    private void closeConnection() throws IOException {
+        server.unsubscribe(this);
+        clientSocket.close();
     }
 
     private void readMessages() throws IOException {
         while (true) {
-//            String message = inputStream.readUTF().trim();
             Command command = readCommand();
             if (command == null) {
                 continue;
@@ -108,6 +108,15 @@ public class ClientHandler {
                 case PUBLIC_MESSAGE: {
                     PublicMessageCommandData data = (PublicMessageCommandData) command.getData();
                     processMessage(data.getMessage());
+                    break;
+                }
+                case UPDATE_USERNAME: {
+                    UpdateUsernameCommandData data = (UpdateUsernameCommandData) command.getData();
+                    String newUsername = data.getUsername();
+                    server.getAuthService().updateUsername(userName, newUsername);
+                    userName = newUsername;
+                    server.notifyClientUserListUpdate();
+                    break;
                 }
             }
         }
@@ -117,12 +126,11 @@ public class ClientHandler {
         this.server.broadcastMessage(message, this);
     }
 
-    private void closeConnection() throws IOException {
-        server.unsubscribe(this);
-        clientSocket.close();
+    public void sendCommand(Command command) throws IOException {
+        outputStream.writeObject(command);
     }
 
-    public String getUsername() {
-        return username;
+    public String getUserName() {
+        return userName;
     }
 }
